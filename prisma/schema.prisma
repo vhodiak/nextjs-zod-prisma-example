@@ -1,0 +1,122 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String       @id @default(cuid())
+  name          String
+  email         String?      @unique
+  password      String?
+  emailVerified DateTime?    @map("email_verified")
+  image         String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  accounts      Account[]
+  sessions      Session[]
+  teamMembers   TeamMember[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String   @id @default(cuid())
+  userId            String   @map("user_id")
+  type              String?
+  provider          String
+  providerAccountId String   @map("provider_account_id")
+  token_type        String?
+  refresh_token     String?  @db.Text
+  access_token      String?  @db.Text
+  expires_at        Int?
+  scope             String?
+  id_token          String?  @db.Text
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String?  @map("user_id")
+  sessionToken String   @unique @map("session_token") @db.Text
+  accessToken  String?  @map("access_token") @db.Text
+  expires      DateTime
+  user         User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("sessions")
+}
+
+model VerificationRequest {
+  id         String   @id @default(cuid())
+  identifier String
+  token      String   @unique
+  expires    DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([identifier, token])
+}
+
+model Team {
+  id          String       @id @default(cuid())
+  name        String       @db.VarChar(255)
+  createdAt   DateTime     @default(now()) @db.Timestamp(6)
+  teamMembers TeamMember[]
+  clients     Client[]
+  Project     Project[]
+}
+
+model TeamMember {
+  teamId   String   @db.VarChar(32)
+  memberId String   @db.VarChar(32)
+  team     Team     @relation(fields: [teamId], references: [id])
+  member   User     @relation(fields: [memberId], references: [id])
+  joinedAt DateTime @default(now()) @db.Timestamp(6)
+  role     String   @db.VarChar(10)
+
+  @@id([teamId, memberId])
+  @@index([teamId], name: "IDX_tmtid")
+  @@index([memberId], name: "IDX_tmmid")
+  @@map("team_member")
+}
+
+model Client {
+  id         String       @id @default(cuid())
+  teamId     String       @db.VarChar(32)
+  firstName  String       @db.VarChar(60)
+  lastName   String       @db.VarChar(60)
+  email      String?      @db.VarChar(100)
+  tel        String?      @db.VarChar(30)
+  createdAt  DateTime     @default(now()) @db.Timestamp(6)
+  team       Team         @relation(fields: [teamId], references: [id])
+  project    Project[]
+
+  @@index([teamId], name: "IDX_cltid")
+  @@index([firstName, lastName, email, tel])
+}
+
+model Project {
+  id         String       @id @default(cuid())
+  teamId     String       @db.VarChar(32)
+  clientId   String       @db.VarChar(32)
+  title      String       @db.VarChar(60)
+  createdAt  DateTime     @default(now()) @db.Timestamp(6)
+  team       Team         @relation(fields: [teamId], references: [id])
+  client     Client       @relation(fields: [clientId], references: [id])
+
+  @@index([teamId], name: "IDX_pteamid")
+  @@index([clientId], name: "IDX_pclientid")
+}
